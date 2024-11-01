@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "cold-email-gen"
+version = "0.1.0"
+description = ""
+authors = ["SaiAryan1784 <saiaryan.goswami1784@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+langchain-groq = "^0.2.0"
+python-dotenv = "^1.0.1"
+chromadb = "^0.5.15"
+langchain-community = "^0.3.3"
+langchain-core = "^0.3.13"
+pandas = "^2.2.3"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
