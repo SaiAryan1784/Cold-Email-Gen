@@ -21,13 +21,21 @@ url_input = st.text_input("Enter the job posting URL:")
 submit_button = st.button("Submit")
 
 # Load portfolio data
-portfolio_data = pd.read_csv("resource/my_portfolio.csv")
+try:
+    portfolio_data = pd.read_csv("resource/my_portfolio.csv")
+except FileNotFoundError:
+    st.error("Portfolio data file not found.")
+    st.stop()
 
 # Initialize JSON parser
 json_parser = JsonOutputParser()
 
 # Set up LLM with Groq API
 groq_api = os.getenv('GROQ_API_KEY')
+if not groq_api:
+    st.error("Groq API key not found. Make sure it's set in the environment.")
+    st.stop()
+
 llm = ChatGroq(
     temperature=0,
     groq_api_key=groq_api,
@@ -36,26 +44,30 @@ llm = ChatGroq(
 
 # Function to generate cold email
 def generate_cold_email(url, user):
-    # Load job page content
-    loader = WebBaseLoader(url)
-    page_data = loader.load().pop().page_content
+    try:
+        # Load job page content
+        loader = WebBaseLoader(url)
+        page_data = loader.load().pop().page_content
 
-    # Define prompt for extracting job information
-    prompt_extract = PromptTemplate.from_template(
-        """
-        ###SCRAPED TEXT FROM WEBSITE:
-        {page_data}
-        ###INSTRUCTION:
-        The scraped text is from the career's page of a website.
-        Your job is to extract the job postings and return them in JSON format with fields such as role, experience, skills, and description.
-        Only return valid JSON.
-        """
-    )
+        # Define prompt for extracting job information
+        prompt_extract = PromptTemplate.from_template(
+            """
+            ###SCRAPED TEXT FROM WEBSITE:
+            {page_data}
+            ###INSTRUCTION:
+            The scraped text is from the career's page of a website.
+            Your job is to extract the job postings and return them in JSON format with fields such as role, experience, skills, and description.
+            Only return valid JSON.
+            """
+        )
 
-    # Extract job data in JSON format
-    chain_extract = prompt_extract | llm
-    res = chain_extract.invoke(input={'page_data': page_data})
-    job_data = json_parser.parse(res.content)
+        # Extract job data in JSON format
+        chain_extract = prompt_extract | llm
+        res = chain_extract.invoke(input={'page_data': page_data})
+        job_data = json_parser.parse(res.content)
+    except Exception as e:
+        st.error(f"Failed to extract job data: {e}")
+        return None
 
     # Connect to ChromaDB and get relevant links
     client = chromadb.PersistentClient('vectorstore')
@@ -105,8 +117,12 @@ def generate_cold_email(url, user):
 
 # When the "Submit" button is clicked
 if submit_button:
-    with st.spinner("Generating cold email..."):
-        # Generate and display cold email
-        email_content = generate_cold_email(url_input, user_name)
-        st.subheader("Generated Cold Email")
-        st.code(email_content, language="markdown")
+    if not url_input or not user_name:
+        st.warning("Please fill out both the URL and your name.")
+    else:
+        with st.spinner("Generating cold email..."):
+            # Generate and display cold email
+            email_content = generate_cold_email(url_input, user_name)
+            if email_content:
+                st.subheader("Generated Cold Email")
+                st.code(email_content, language="markdown")
